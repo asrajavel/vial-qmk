@@ -2,6 +2,16 @@
     "name": "Sofle",
     "vendorId": "0xFC32",
     "productId": "0x0287",
+    "customKeycodes": [
+        {   "name": "AT_L",
+            "title": "AT_L",
+            "shortName": "AT_L"
+        },
+        {   "name": "AT_R",
+            "title": "AT_R",
+            "shortName": "AT_R"
+        }
+    ],
     "matrix": { "rows": 10, "cols": 6 },
     "layouts": {
         "keymap": [

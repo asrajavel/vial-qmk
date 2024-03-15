@@ -20,6 +20,20 @@
 
 #include QMK_KEYBOARD_H
 #include "oled.c"
+//#include "super-alt-tab.c"
+
+/**
+ * Cool Function where a single key does ALT+TAB
+ * From: https://beta.docs.qmk.fm/features/feature_macros#super-alt-tab
+ */
+bool is_alt_tab_active = false;    // ADD this near the begining of keymap.c
+uint16_t alt_tab_timer = 0;        // we will be using them soon.
+
+enum custom_keycodes {            // Make sure have the awesome keycode ready
+  AT_L = QK_KB_0,
+  AT_R
+};
+
 
 // Default keymap. This can be changed in Vial. Use oled.c to change beavior that Vial cannot change.
 
@@ -85,7 +99,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *            `----------------------------------'           '------''---------------------------'
  */
 [2] = LAYOUT(
-  _______,   KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                       KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_F11,
+  QK_BOOT,   KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                       KC_F6,   KC_F7,   KC_F8,   KC_F9,  KC_F10,  KC_F11,
   KC_GRV,    KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                       KC_6,    KC_7,    KC_8,    KC_9,    KC_0,  KC_F12,
   _______, KC_EXLM,   KC_AT, KC_HASH,  KC_DLR, KC_PERC,                       KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_PIPE,
   _______,  KC_EQL, KC_MINS, KC_PLUS, KC_LCBR, KC_RCBR, _______,       _______, KC_LBRC, KC_RBRC, KC_SCLN, KC_COLN, KC_BSLS, _______,
@@ -106,7 +120,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *            `----------------------------------'           '------''---------------------------'
  */
 [3] = LAYOUT(
-  _______, _______ , _______ , _______ , _______ , _______,                           _______,  _______  , _______,  _______ ,  _______ ,_______,
+  _______, _______ , _______ , _______ , _______ , _______,                           _______,  _______  , _______,  _______ ,  _______ ,QK_BOOT,
   _______,  KC_INS,  KC_PSCR,   KC_APP,  XXXXXXX, XXXXXXX,                        KC_PGUP, _______,   KC_UP, _______,_______, KC_BSPC,
   _______, KC_LALT,  KC_LCTL,  KC_LSFT,  XXXXXXX, KC_CAPS,                       KC_PGDN,  KC_LEFT, KC_DOWN, KC_RGHT,  KC_DEL, KC_BSPC,
   _______,KC_UNDO, KC_CUT, KC_COPY, KC_PASTE, XXXXXXX,  _______,       _______,  XXXXXXX, _______, XXXXXXX, _______,   XXXXXXX, _______,
@@ -120,3 +134,51 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {
     [2] = { ENCODER_CCW_CW(KC_TRNS, KC_TRNS), ENCODER_CCW_CW(KC_TRNS, KC_TRNS) },
     [3] = { ENCODER_CCW_CW(KC_TRNS, KC_TRNS), ENCODER_CCW_CW(KC_TRNS, KC_TRNS) },
 };
+
+
+// key processing
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  switch (keycode) {               // This will do most of the grunt work with the keycodes.
+    case AT_R:
+      if (record->event.pressed) {
+        if (!is_alt_tab_active) {
+          is_alt_tab_active = true;
+          register_code(KC_LGUI);
+        }
+//        alt_tab_timer = timer_read();
+        register_code(KC_TAB);
+      } else {
+        unregister_code(KC_TAB);
+      }
+      break;
+      case AT_L:
+        if (record->event.pressed) {
+          if (!is_alt_tab_active) {
+            is_alt_tab_active = true;
+            register_code(KC_LGUI);
+          }
+//          alt_tab_timer = timer_read();
+          register_code(KC_LSFT);
+          register_code(KC_TAB);
+        } else {
+          unregister_code(KC_TAB);
+          unregister_code(KC_LSFT);
+        }
+        break;
+  }
+  return true;
+}
+
+void matrix_scan_user(void) {
+    switch (get_highest_layer(layer_state)) {
+        case 0:
+            if (is_alt_tab_active) {
+                unregister_code(KC_LGUI);
+                is_alt_tab_active = false;
+                tap_code16(HYPR(KC_SCLN));
+            }
+            break;
+        default:
+            break;
+    }
+}
