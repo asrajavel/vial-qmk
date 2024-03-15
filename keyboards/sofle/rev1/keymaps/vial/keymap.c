@@ -20,16 +20,14 @@
 
 #include QMK_KEYBOARD_H
 #include "oled.c"
-//#include "super-alt-tab.c"
 
 /**
  * Cool Function where a single key does ALT+TAB
  * From: https://beta.docs.qmk.fm/features/feature_macros#super-alt-tab
  */
-bool is_alt_tab_active = false;    // ADD this near the begining of keymap.c
-uint16_t alt_tab_timer = 0;        // we will be using them soon.
+bool is_alt_tab_active = false;
 
-enum custom_keycodes {            // Make sure have the awesome keycode ready
+enum custom_keycodes {
   AT_L = QK_KB_0,
   AT_R
 };
@@ -145,7 +143,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
           is_alt_tab_active = true;
           register_code(KC_LGUI);
         }
-//        alt_tab_timer = timer_read();
         register_code(KC_TAB);
       } else {
         unregister_code(KC_TAB);
@@ -157,7 +154,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             is_alt_tab_active = true;
             register_code(KC_LGUI);
           }
-//          alt_tab_timer = timer_read();
           register_code(KC_LSFT);
           register_code(KC_TAB);
         } else {
