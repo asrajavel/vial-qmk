@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="flash" type="ShConfigurationType">
-    <option name="SCRIPT_TEXT" value="qmk flash -c -kb sofle/rev1 -km vial -e CONVERT_TO=kb2040" />
+    <option name="SCRIPT_TEXT" value="qmk compile -c -kb sofle/rev1 -km vial -e CONVERT_TO=kb2040" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="" />
     <option name="SCRIPT_OPTIONS" value="" />

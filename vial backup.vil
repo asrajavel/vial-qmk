@@ -102,7 +102,7 @@
                 "HYPR(KC_SCOLON)"
             ],
             [
-                "KC_NO",
+                "0x7c73",
                 "KC_NO",
                 "KC_BSPACE",
                 "USER00",
