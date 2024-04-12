@@ -1,10 +1,12 @@
 # Converters
 
-This page documents the automated process for converting keyboards to use drop-in replacement controllers. This process is designed to be easy to use and can be completed in a few simple steps.
+Since many drop-in replacement controllers now exist, we've done our best to make them easy to use in existing designs.
 
-## Supported Converters
+This page documents the handy automated process for converting keyboards.
 
-The following converters are available at this time:
+### Supported Converters
+
+Currently the following converters are available:
 
 | From       | To                |
 |------------|-------------------|
@@ -26,10 +28,14 @@ The following converters are available at this time:
 | `elite_c`  | `helios`          |
 | `elite_c`  | `liatris`         |
 
+See below for more in depth information on each converter.
 
 ## Overview
 
-Each converter category is broken down by its declared `pin compatibility`. This ensures that only valid combinations are attempted. You can generate the firmware by appending `-e CONVERT_TO=<target>` to your compile/flash command. For example:
+Each converter category is broken down by its declared `pin compatibility`.
+This ensures that only valid combinations are attempted.
+
+You can generate the firmware by appending `-e CONVERT_TO=<target>` to your compile/flash command. For example:
 
 ```sh
 qmk flash -c -kb keebio/bdn9/rev1 -km default -e CONVERT_TO=proton_c
@@ -53,12 +59,14 @@ Once a converter is enabled, it exposes the `CONVERT_TO_<target_uppercase>` flag
 
 ### Pin Compatibility
 
-To ensure compatibility, provide validation, and enable future workflows, a keyboard should declare its `pin compatibility`. For legacy reasons, this is currently assumed to be `promicro`. The following pin compatibility interfaces are currently defined:
+To ensure compatibility, provide validation, and power future workflows, a keyboard should declare its `pin compatibility`. For legacy reasons, this is currently assumed to be `promicro`.
 
-| Pin Compatibility | Notes                             |
-|-------------------|-----------------------------------|
-| `promicro`        | Includes RX/TX LEDs               |
-| `elite_c`         | Includes bottom row pins, no LEDs |
+Currently the following pin compatibility interfaces are defined:
+
+| Pinout     | Notes                             |
+|------------|-----------------------------------|
+| `promicro` | Includes RX/TX LEDs               |
+| `elite_c`  | Includes bottom row pins, no LEDs |
 
 To declare the base for conversions, add this line to your keyboard's `rules.mk`:
 
@@ -132,7 +140,7 @@ The following defaults are based on what has been implemented for [RP2040](platf
 
 ### SparkFun Pro Micro - RP2040, Blok, Bit-C PRO and Michi :id=promicro_rp2040 
 
-Feature set is identical to [Adafruit KB2040](#kb2040).
+Currently identical to [Adafruit KB2040](#kb2040).
 
 ### STeMCell :id=stemcell
 
@@ -142,7 +150,9 @@ There are two versions of STeMCell available, with different pinouts:
   - v2.0.0 (pre-release v1.0.1, v1.0.2)
 Default official firmware only supports v2.0.0 STeMCell.
 
-STeMCell has support to swap UART and I2C pins to enable single-wire uart communication in STM chips. The following additional flags has to be used while compiling, based on the pin used for split communication:
+STeMCell has support to swap UART and I2C pins, to enable single-wire uart communication in STM chips.
+
+The following additional flags has to be used while compiling, based on the pin used for split communication.
 
 | Split Pin | Compile flags |
 |-----------|---------------|
@@ -163,8 +173,11 @@ The Bonsai C4 only has one on-board LED (B2), and by default, both the Pro Micro
 
 ### RP2040 Community Edition - Elite-Pi, Helios, and Liatris :id=rp2040_ce
 
-Feature set is identical to [Adafruit KB2040](#kb2040). VBUS detection is enabled by default for superior split keyboard support. For more information, refer to the [Community Edition pinout](platformdev_rp2040.md#rp2040_ce) docs.
+Feature set currently identical to [Adafruit KB2040](#kb2040).
 
+Enables VBUS detection by default for superior split keyboard support.
+
+For more information, refer to the [RP2040 Community Edition](platformdev_rp2040.md#rp2040_ce) docs.
 
 ## Elite-C
 
@@ -189,8 +202,8 @@ Converter summary:
 
 ### STeMCell :id=stemcell_elite
 
-Identical to [Pro Micro - STeMCell](#stemcell) with support for the additional bottom row of pins.
+Currently identical to [STeMCell](#stemcell) with support for the additional bottom row of pins.
 
 ### RP2040 Community Edition :id=rp2040_ce_elite
 
-Identical to [Pro Micro - RP2040 Community Edition](#rp2040_ce) with support for the additional bottom row of pins.
+Currently identical to [RP2040 Community Edition](#rp2040_ce), with support for the additional bottom row of pins.

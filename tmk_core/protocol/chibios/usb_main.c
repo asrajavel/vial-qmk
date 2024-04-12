@@ -43,7 +43,6 @@
 #include "usb_device_state.h"
 #include "usb_descriptor.h"
 #include "usb_driver.h"
-#include "usb_types.h"
 
 #ifdef NKRO_ENABLE
 #    include "keycode_config.h"
@@ -72,7 +71,7 @@ static virtual_timer_t keyboard_idle_timer;
 
 static void keyboard_idle_timer_cb(struct ch_virtual_timer *, void *arg);
 
-report_keyboard_t keyboard_report_sent = {0};
+report_keyboard_t keyboard_report_sent = {{0}};
 report_mouse_t    mouse_report_sent    = {0};
 
 union {
@@ -104,18 +103,30 @@ union {
             NULL, /* SETUP buffer (not a SETUP endpoint) */
 #endif
 
+/* HID specific constants */
+#define HID_GET_REPORT 0x01
+#define HID_GET_IDLE 0x02
+#define HID_GET_PROTOCOL 0x03
+#define HID_SET_REPORT 0x09
+#define HID_SET_IDLE 0x0A
+#define HID_SET_PROTOCOL 0x0B
+
+/*
+ * Handles the GET_DESCRIPTOR callback
+ *
+ * Returns the proper descriptor
+ */
 static const USBDescriptor *usb_get_descriptor_cb(USBDriver *usbp, uint8_t dtype, uint8_t dindex, uint16_t wIndex) {
-    usb_control_request_t *setup = (usb_control_request_t *)usbp->setup;
-
-    static USBDescriptor descriptor;
-    descriptor.ud_string = NULL;
-    descriptor.ud_size   = get_usb_descriptor(setup->wValue.word, setup->wIndex, setup->wLength, (const void **const) & descriptor.ud_string);
-
-    if (descriptor.ud_string == NULL) {
+    (void)usbp;
+    static USBDescriptor desc;
+    uint16_t             wValue  = ((uint16_t)dtype << 8) | dindex;
+    uint16_t             wLength = ((uint16_t)usbp->setup[7] << 8) | usbp->setup[6];
+    desc.ud_string               = NULL;
+    desc.ud_size                 = get_usb_descriptor(wValue, wIndex, wLength, (const void **const) & desc.ud_string);
+    if (desc.ud_string == NULL)
         return NULL;
-    }
-
-    return &descriptor;
+    else
+        return &desc;
 }
 
 /*
@@ -486,7 +497,8 @@ void usb_event_queue_task(void) {
     }
 }
 
-/* Handles the USB driver global events. */
+/* Handles the USB driver global events
+ * TODO: maybe disable some things when connection is lost? */
 static void usb_event_cb(USBDriver *usbp, usbevent_t event) {
     switch (event) {
         case USB_EVENT_ADDRESS:
@@ -558,6 +570,16 @@ static void usb_event_cb(USBDriver *usbp, usbevent_t event) {
     }
 }
 
+/* Function used locally in os/hal/src/usb.c for getting descriptors
+ * need it here for HID descriptor */
+static uint16_t get_hword(uint8_t *p) {
+    uint16_t hw;
+
+    hw = (uint16_t)*p++;
+    hw |= (uint16_t)*p << 8U;
+    return hw;
+}
+
 /*
  * Appendix G: HID Request Support Requirements
  *
@@ -574,9 +596,7 @@ static void usb_event_cb(USBDriver *usbp, usbevent_t event) {
 static uint8_t set_report_buf[2] __attribute__((aligned(4)));
 
 static void set_led_transfer_cb(USBDriver *usbp) {
-    usb_control_request_t *setup = (usb_control_request_t *)usbp->setup;
-
-    if (setup->wLength == 2) {
+    if (usbp->setup[6] == 2) { /* LSB(wLength) */
         uint8_t report_id = set_report_buf[0];
         if ((report_id == REPORT_ID_KEYBOARD) || (report_id == REPORT_ID_NKRO)) {
             keyboard_led_state = set_report_buf[1];
@@ -586,16 +606,24 @@ static void set_led_transfer_cb(USBDriver *usbp) {
     }
 }
 
-static bool usb_requests_hook_cb(USBDriver *usbp) {
-    usb_control_request_t *setup = (usb_control_request_t *)usbp->setup;
+/* Callback for SETUP request on the endpoint 0 (control) */
+static bool usb_request_hook_cb(USBDriver *usbp) {
+    const USBDescriptor *dp;
+
+    /* usbp->setup fields:
+     *  0:   bmRequestType (bitmask)
+     *  1:   bRequest
+     *  2,3: (LSB,MSB) wValue
+     *  4,5: (LSB,MSB) wIndex
+     *  6,7: (LSB,MSB) wLength (number of bytes to transfer if there is a data phase) */
 
     /* Handle HID class specific requests */
-    if ((setup->bmRequestType & (USB_RTYPE_TYPE_MASK | USB_RTYPE_RECIPIENT_MASK)) == (USB_RTYPE_TYPE_CLASS | USB_RTYPE_RECIPIENT_INTERFACE)) {
-        switch (setup->bmRequestType & USB_RTYPE_DIR_MASK) {
+    if (((usbp->setup[0] & USB_RTYPE_TYPE_MASK) == USB_RTYPE_TYPE_CLASS) && ((usbp->setup[0] & USB_RTYPE_RECIPIENT_MASK) == USB_RTYPE_RECIPIENT_INTERFACE)) {
+        switch (usbp->setup[0] & USB_RTYPE_DIR_MASK) {
             case USB_RTYPE_DIR_DEV2HOST:
-                switch (setup->bRequest) {
-                    case HID_REQ_GetReport:
-                        switch (setup->wIndex) {
+                switch (usbp->setup[1]) { /* bRequest */
+                    case HID_GET_REPORT:
+                        switch (usbp->setup[4]) { /* LSB(wIndex) (check MSB==0?) */
 #ifndef KEYBOARD_SHARED_EP
                             case KEYBOARD_INTERFACE:
                                 usbSetupTransfer(usbp, (uint8_t *)&keyboard_report_sent, KEYBOARD_REPORT_SIZE, NULL);
@@ -611,54 +639,59 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
 #ifdef SHARED_EP_ENABLE
                             case SHARED_INTERFACE:
 #    ifdef KEYBOARD_SHARED_EP
-                                if (setup->wValue.lbyte == REPORT_ID_KEYBOARD) {
+                                if (usbp->setup[2] == REPORT_ID_KEYBOARD) {
                                     usbSetupTransfer(usbp, (uint8_t *)&keyboard_report_sent, KEYBOARD_REPORT_SIZE, NULL);
-                                    return true;
+                                    return TRUE;
+                                    break;
                                 }
 #    endif
 #    ifdef MOUSE_SHARED_EP
-                                if (setup->wValue.lbyte == REPORT_ID_MOUSE) {
+                                if (usbp->setup[2] == REPORT_ID_MOUSE) {
                                     usbSetupTransfer(usbp, (uint8_t *)&mouse_report_sent, sizeof(mouse_report_sent), NULL);
-                                    return true;
+                                    return TRUE;
+                                    break;
                                 }
 #    endif
 #endif /* SHARED_EP_ENABLE */
                             default:
-                                universal_report_blank.report_id = setup->wValue.lbyte;
-                                usbSetupTransfer(usbp, (uint8_t *)&universal_report_blank, setup->wLength, NULL);
-                                return true;
+                                universal_report_blank.report_id = usbp->setup[2];
+                                usbSetupTransfer(usbp, (uint8_t *)&universal_report_blank, usbp->setup[6], NULL);
+                                return TRUE;
+                                break;
                         }
                         break;
 
-                    case HID_REQ_GetProtocol:
-                        if (setup->wIndex == KEYBOARD_INTERFACE) {
-                            usbSetupTransfer(usbp, &keyboard_protocol, sizeof(uint8_t), NULL);
-                            return true;
+                    case HID_GET_PROTOCOL:
+                        if ((usbp->setup[4] == KEYBOARD_INTERFACE) && (usbp->setup[5] == 0)) { /* wIndex */
+                            usbSetupTransfer(usbp, &keyboard_protocol, 1, NULL);
+                            return TRUE;
                         }
                         break;
 
-                    case HID_REQ_GetIdle:
-                        usbSetupTransfer(usbp, &keyboard_idle, sizeof(uint8_t), NULL);
-                        return true;
+                    case HID_GET_IDLE:
+                        usbSetupTransfer(usbp, &keyboard_idle, 1, NULL);
+                        return TRUE;
+                        break;
                 }
                 break;
 
             case USB_RTYPE_DIR_HOST2DEV:
-                switch (setup->bRequest) {
-                    case HID_REQ_SetReport:
-                        switch (setup->wIndex) {
+                switch (usbp->setup[1]) { /* bRequest */
+                    case HID_SET_REPORT:
+                        switch (usbp->setup[4]) { /* LSB(wIndex) (check MSB==0?) */
                             case KEYBOARD_INTERFACE:
 #if defined(SHARED_EP_ENABLE) && !defined(KEYBOARD_SHARED_EP)
                             case SHARED_INTERFACE:
 #endif
                                 usbSetupTransfer(usbp, set_report_buf, sizeof(set_report_buf), set_led_transfer_cb);
-                                return true;
+                                return TRUE;
+                                break;
                         }
                         break;
 
-                    case HID_REQ_SetProtocol:
-                        if (setup->wIndex == KEYBOARD_INTERFACE) {
-                            keyboard_protocol = setup->wValue.word;
+                    case HID_SET_PROTOCOL:
+                        if ((usbp->setup[4] == KEYBOARD_INTERFACE) && (usbp->setup[5] == 0)) { /* wIndex */
+                            keyboard_protocol = ((usbp->setup[2]) != 0x00);                    /* LSB(wValue) */
 #ifdef NKRO_ENABLE
                             if (!keyboard_protocol && keyboard_idle) {
 #else  /* NKRO_ENABLE */
@@ -671,11 +704,12 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
                             }
                         }
                         usbSetupTransfer(usbp, NULL, 0, NULL);
-                        return true;
+                        return TRUE;
+                        break;
 
-                    case HID_REQ_SetIdle:
-                        keyboard_idle = setup->wValue.hbyte;
-                        /* arm the timer */
+                    case HID_SET_IDLE:
+                        keyboard_idle = usbp->setup[3]; /* MSB(wValue) */
+                                                        /* arm the timer */
 #ifdef NKRO_ENABLE
                         if (!keymap_config.nkro && keyboard_idle) {
 #else  /* NKRO_ENABLE */
@@ -686,21 +720,19 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
                             osalSysUnlockFromISR();
                         }
                         usbSetupTransfer(usbp, NULL, 0, NULL);
-                        return true;
+                        return TRUE;
+                        break;
                 }
                 break;
         }
     }
 
-    /* Handle the Get_Descriptor Request for HID class, which is not handled by
-     * the ChibiOS USB driver */
-    if (((setup->bmRequestType & (USB_RTYPE_DIR_MASK | USB_RTYPE_RECIPIENT_MASK)) == (USB_RTYPE_DIR_DEV2HOST | USB_RTYPE_RECIPIENT_INTERFACE)) && (setup->bRequest == USB_REQ_GET_DESCRIPTOR)) {
-        const USBDescriptor *descriptor = usbp->config->get_descriptor_cb(usbp, setup->wValue.lbyte, setup->wValue.hbyte, setup->wIndex);
-        if (descriptor == NULL) {
-            return false;
-        }
-        usbSetupTransfer(usbp, (uint8_t *)descriptor->ud_string, descriptor->ud_size, NULL);
-        return true;
+    /* Handle the Get_Descriptor Request for HID class (not handled by the default hook) */
+    if ((usbp->setup[0] == 0x81) && (usbp->setup[1] == USB_REQ_GET_DESCRIPTOR)) {
+        dp = usbp->config->get_descriptor_cb(usbp, usbp->setup[3], usbp->setup[2], get_hword(&usbp->setup[4]));
+        if (dp == NULL) return FALSE;
+        usbSetupTransfer(usbp, (uint8_t *)dp->ud_string, dp->ud_size, NULL);
+        return TRUE;
     }
 
     for (int i = 0; i < NUM_USB_DRIVERS; i++) {
@@ -710,9 +742,10 @@ static bool usb_requests_hook_cb(USBDriver *usbp) {
         }
     }
 
-    return false;
+    return FALSE;
 }
 
+/* Start-of-frame callback */
 static void usb_sof_cb(USBDriver *usbp) {
     osalSysLockFromISR();
     for (int i = 0; i < NUM_USB_DRIVERS; i++) {
@@ -725,7 +758,7 @@ static void usb_sof_cb(USBDriver *usbp) {
 static const USBConfig usbcfg = {
     usb_event_cb,          /* USB events callback */
     usb_get_descriptor_cb, /* Device GET_DESCRIPTOR request callback */
-    usb_requests_hook_cb,  /* Requests hook callback */
+    usb_request_hook_cb,   /* Requests hook callback */
     usb_sof_cb             /* Start Of Frame callback */
 };
 
@@ -850,20 +883,24 @@ void send_report(uint8_t endpoint, void *report, size_t size) {
 /* prepare and start sending a report IN
  * not callable from ISR or locked state */
 void send_keyboard(report_keyboard_t *report) {
+    uint8_t ep   = KEYBOARD_IN_EPNUM;
+    size_t  size = KEYBOARD_REPORT_SIZE;
+
     /* If we're in Boot Protocol, don't send any report ID or other funky fields */
     if (!keyboard_protocol) {
-        send_report(KEYBOARD_IN_EPNUM, &report->mods, 8);
+        send_report(ep, &report->mods, 8);
     } else {
-        send_report(KEYBOARD_IN_EPNUM, report, KEYBOARD_REPORT_SIZE);
+#ifdef NKRO_ENABLE
+        if (keymap_config.nkro) {
+            ep   = SHARED_IN_EPNUM;
+            size = sizeof(struct nkro_report);
+        }
+#endif
+
+        send_report(ep, report, size);
     }
 
     keyboard_report_sent = *report;
-}
-
-void send_nkro(report_nkro_t *report) {
-#ifdef NKRO_ENABLE
-    send_report(SHARED_IN_EPNUM, report, sizeof(report_nkro_t));
-#endif
 }
 
 /* ---------------------------------------------------------

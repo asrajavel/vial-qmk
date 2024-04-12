@@ -21,9 +21,6 @@
 
 #include <hal.h>
 
-#include "gpio.h"
-#include "chibios_config.h"
-
 #ifndef SERIAL_DRIVER
 #    define SERIAL_DRIVER SD1
 #endif

@@ -17,7 +17,6 @@
 
 #ifdef POINTING_DEVICE_AUTO_MOUSE_ENABLE
 
-#    include <string.h>
 #    include "pointing_device_auto_mouse.h"
 #    include "debug.h"
 #    include "action_util.h"

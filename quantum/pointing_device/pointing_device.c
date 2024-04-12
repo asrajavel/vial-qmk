@@ -19,8 +19,6 @@
 #include "pointing_device.h"
 #include <string.h>
 #include "timer.h"
-#include "gpio.h"
-
 #ifdef MOUSEKEY_ENABLE
 #    include "mousekey.h"
 #endif
