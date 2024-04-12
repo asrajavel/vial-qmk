@@ -29,7 +29,8 @@ bool is_alt_tab_active = false;
 
 enum custom_keycodes {
   AT_L = QK_KB_0,
-  AT_R
+  AT_R,
+  kubectl
 };
 
 

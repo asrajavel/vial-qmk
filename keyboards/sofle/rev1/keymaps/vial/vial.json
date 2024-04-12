@@ -10,6 +10,10 @@
         {   "name": "AT_R",
             "title": "AT_R",
             "shortName": "AT_R"
+        },
+        {   "name": "kubectl",
+            "title": "kubectl",
+            "shortName": "kubectl"
         }
     ],
     "matrix": { "rows": 10, "cols": 6 },
