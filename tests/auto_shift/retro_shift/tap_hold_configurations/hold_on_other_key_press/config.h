@@ -16,6 +16,7 @@
 
 #pragma once
 
+<<<<<<<< HEAD:tests/auto_shift/retro_shift/tap_hold_configurations/hold_on_other_key_press/config.h
 #include "test_common.h"
 
 #define HOLD_ON_OTHER_KEY_PRESS
@@ -24,3 +25,11 @@
 // releases between AUTO_SHIFT_TIMEOUT and TAPPING_TERM are not tested
 #define AUTO_SHIFT_TIMEOUT TAPPING_TERM
 #define AUTO_SHIFT_MODIFIERS
+========
+#define SPLIT_HAND_PIN B9
+#define SERIAL_USART_TX_PIN B6
+
+#define SERIAL_USART_SPEED 921600
+
+#define RGBLIGHT_LAYERS
+>>>>>>>> 2772f52fa548c48ae3abbe4784eaadbef063b4f2:keyboards/mlego/m60_split/rev2/config.h
