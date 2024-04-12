@@ -109,3 +109,5 @@ compile_commands.json
 .clangd/
 .cache/
 !/sofle_rev1_vial_kb2040.uf2
+!/keyboards/sofle/
+/keyboards/
