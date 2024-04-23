@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:tests/auto_shift/auto_shift_repeat/config.h
+/* Copyright 2022 Isaac Elenbaas
+========
 /* Copyright 2021 Stefan Kerkmann
+>>>>>>>> 2772f52fa548c48ae3abbe4784eaadbef063b4f2:tests/auto_shift/retro_shift/tap_hold_configurations/default_mod_tap/no_timeout/config.h
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,4 +22,8 @@
 
 #include "test_common.h"
 
+<<<<<<<< HEAD:tests/auto_shift/auto_shift_repeat/config.h
+#define AUTO_SHIFT_REPEAT
+========
 #define RETRO_SHIFT
+>>>>>>>> 2772f52fa548c48ae3abbe4784eaadbef063b4f2:tests/auto_shift/retro_shift/tap_hold_configurations/default_mod_tap/no_timeout/config.h
